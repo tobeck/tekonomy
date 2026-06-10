@@ -1,0 +1,23 @@
+# Development-only Postgres for local work.
+# Run from repo root: docker compose -f docker/docker-compose.dev.yml up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tekonomy-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tekonomy
+      POSTGRES_PASSWORD: tekonomy
+      POSTGRES_DB: tekonomy
+    ports:
+      - '5432:5432'
+    volumes:
+      - tekonomy-postgres-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tekonomy -d tekonomy']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  tekonomy-postgres-dev:
