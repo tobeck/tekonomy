@@ -3,9 +3,9 @@
 # Run with: sortie /path/to/tekonomy/WORKFLOW.md
 tracker:
   kind: github
-  api_key: $SORTIE_GITHUB_TOKEN          # fine-grained PAT, scoped to tobeck/tekonomy
+  api_key: $SORTIE_GITHUB_TOKEN # fine-grained PAT, scoped to tobeck/tekonomy
   project: tobeck/tekonomy
-  query_filter: "label:agent"
+  query_filter: 'label:agent'
   active_states: [agent:todo, agent:doing]
   in_progress_state: agent:doing
   handoff_state: agent:review
@@ -52,10 +52,12 @@ hooks:
       gh issue edit "$SORTIE_ISSUE_IDENTIFIER" --remove-label agent 2>/dev/null || true
     fi
 ---
+
 You are a senior engineer working a single issue to completion in an isolated
 checkout on branch `sortie/issue-{{ .issue.identifier }}`.
 
 ## Issue #{{ .issue.identifier }}: {{ .issue.title }}
+
 {{ .issue.description }}
 
 Read CLAUDE.md first; it is the contract. Implement the issue, add/update tests,
