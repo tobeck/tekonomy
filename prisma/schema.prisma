@@ -1,0 +1,158 @@
+// tekonomy Phase 1 schema. Workspace-scoped throughout so a multi-user /
+// shared-workspace UI can be added later without a migration rewrite.
+// Money is stored as integer minor units (öre) in BigInt columns.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WorkspaceKind {
+  PERSONAL
+  SHARED
+}
+
+enum MembershipRole {
+  OWNER
+  MEMBER
+}
+
+enum AccountKind {
+  CHECKING
+  SAVINGS
+}
+
+enum RuleMatchType {
+  CONTAINS
+  REGEX
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  displayName String
+  createdAt   DateTime @default(now())
+
+  memberships Membership[]
+}
+
+model Workspace {
+  id        String        @id @default(cuid())
+  name      String
+  kind      WorkspaceKind @default(PERSONAL)
+  createdAt DateTime      @default(now())
+
+  memberships  Membership[]
+  accounts     Account[]
+  categories   Category[]
+  rules        Rule[]
+  imports      Import[]
+  transactions Transaction[]
+}
+
+model Membership {
+  id          String         @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        MembershipRole @default(MEMBER)
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+}
+
+model Account {
+  id          String      @id @default(cuid())
+  workspaceId String
+  name        String
+  kind        AccountKind @default(CHECKING)
+  currency    String      @default("SEK")
+  createdAt   DateTime    @default(now())
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  imports      Import[]
+  transactions Transaction[]
+
+  @@index([workspaceId])
+}
+
+model Category {
+  id          String  @id @default(cuid())
+  workspaceId String
+  name        String
+  color       String?
+  parentId    String?
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent       Category?     @relation("CategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Category[]    @relation("CategoryParent")
+  rules        Rule[]
+  transactions Transaction[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+}
+
+model Rule {
+  id          String        @id @default(cuid())
+  workspaceId String
+  matchType   RuleMatchType @default(CONTAINS)
+  pattern     String
+  categoryId  String
+  priority    Int           @default(0)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  category  Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([workspaceId, priority])
+}
+
+model Import {
+  id                     String   @id @default(cuid())
+  workspaceId            String
+  accountId              String
+  filename               String
+  sha256                 String
+  rowCount               Int
+  insertedCount          Int
+  skippedDuplicateCount  Int
+  importedAt             DateTime @default(now())
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, accountId])
+}
+
+model Transaction {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  accountId       String
+  importId        String?
+  bookedAt        DateTime  @db.Date
+  valueAt         DateTime? @db.Date
+  descriptionRaw  String
+  descriptionNorm String
+  amountMinor     BigInt
+  currency        String    @default("SEK")
+  categoryId      String?
+  dedupeKey       String
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  import    Import?   @relation(fields: [importId], references: [id], onDelete: SetNull)
+  category  Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, accountId, dedupeKey])
+  @@index([workspaceId])
+  @@index([workspaceId, accountId])
+  @@index([workspaceId, categoryId])
+}
